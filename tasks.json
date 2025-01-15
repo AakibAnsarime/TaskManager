@@ -32,7 +32,7 @@
         "title": "Fotter",
         "description": "simple footer",
         "completed": false,
-        "status": "working",
+        "status": "stuck",
         "createdAt": "2025-01-15T18:14:28.466Z",
         "completedAt": null,
         "owner": {
