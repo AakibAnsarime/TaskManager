@@ -2,32 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { TaskList } from './components/TaskList';
 import { TaskModal } from './components/TaskModal';
 import { Task, SubTask } from './types';
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { db } from './firebaseConfig';
+import { LayoutGrid, Table2, Trello, Plus } from 'lucide-react';
 
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    fetch('http://localhost:3001/tasks')
-      .then(response => response.json())
-      .then(data => setTasks(data))
-      .catch(error => console.error('Error fetching tasks:', error));
+    const fetchTasks = async () => {
+      const querySnapshot = await getDocs(collection(db, 'tasks'));
+      const tasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+      setTasks(tasksData);
+    };
+
+    fetchTasks();
   }, []);
 
-  const handleAddTask = (newTask: Task) => {
-    fetch('http://localhost:3001/tasks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(newTask),
-    })
-      .then(response => response.json())
-      .then(data => setTasks([...tasks, data]))
-      .catch(error => console.error('Error adding task:', error));
+  const handleAddTask = async (newTask: Task) => {
+    const docRef = await addDoc(collection(db, 'tasks'), newTask);
+    setTasks([...tasks, { ...newTask, id: docRef.id }]);
   };
 
-  const handleAddSubTask = (taskId: string, title: string, description: string) => {
+  const handleAddSubTask = async (taskId: string, title: string, description: string) => {
     const newSubTask: SubTask = {
       id: crypto.randomUUID(),
       title,
@@ -42,82 +40,28 @@ function App() {
       }
     };
 
-    fetch(`http://localhost:3001/tasks/${taskId}/subtasks`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(newSubTask),
-    })
-      .then(response => response.json())
-      .then(data => {
-        setTasks(tasks.map(task =>
-          task.id === taskId ? { ...task, subTasks: [...task.subTasks, data] } : task
-        ));
-      })
-      .catch(error => console.error('Error adding subtask:', error));
+    const taskDocRef = doc(db, 'tasks', taskId);
+    const task = tasks.find(task => task.id === taskId);
+    if (task) {
+      const updatedSubTasks = [...task.subTasks, newSubTask];
+      await updateDoc(taskDocRef, { subTasks: updatedSubTasks });
+      setTasks(tasks.map(task => task.id === taskId ? { ...task, subTasks: updatedSubTasks } : task));
+    }
   };
 
-  const handleStatusChange = (taskId: string, status: Task['status']) => {
-    fetch(`http://localhost:3001/tasks/${taskId}/status`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ status }),
-    })
-      .then(response => response.json())
-      .then(() => {
-        setTasks(tasks.map(task =>
-          task.id === taskId ? { ...task, status, completedAt: status === 'done' ? new Date().toISOString() : null } : task
-        ));
-      })
-      .catch(error => console.error('Error updating task status:', error));
+  const handleDeleteTask = async (taskId: string) => {
+    await deleteDoc(doc(db, 'tasks', taskId));
+    setTasks(tasks.filter(task => task.id !== taskId));
   };
 
-  const handleSubTaskStatusChange = (taskId: string, subTaskId: string, status: Task['status']) => {
-    fetch(`http://localhost:3001/tasks/${taskId}/subtasks/${subTaskId}/status`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ status }),
-    })
-      .then(response => response.json())
-      .then(() => {
-        setTasks(tasks.map(task =>
-          task.id === taskId ? {
-            ...task,
-            subTasks: task.subTasks.map(subTask =>
-              subTask.id === subTaskId ? { ...subTask, status, completedAt: status === 'done' ? new Date().toISOString() : null } : subTask
-            )
-          } : task
-        ));
-      })
-      .catch(error => console.error('Error updating subtask status:', error));
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    fetch(`http://localhost:3001/tasks/${taskId}`, {
-      method: 'DELETE',
-    })
-      .then(() => setTasks(tasks.filter(task => task.id !== taskId)))
-      .catch(error => console.error('Error deleting task:', error));
-  };
-
-  const handleDeleteSubTask = (taskId: string, subTaskId: string) => {
-    fetch(`http://localhost:3001/tasks/${taskId}/subtasks/${subTaskId}`, {
-      method: 'DELETE',
-    })
-      .then(() => {
-        setTasks(tasks.map(task => {
-          if (task.id === taskId) {
-            task.subTasks = task.subTasks.filter(subTask => subTask.id !== subTaskId);
-          }
-          return task;
-        }));
-      })
-      .catch(error => console.error('Error deleting subtask:', error));
+  const handleDeleteSubTask = async (taskId: string, subTaskId: string) => {
+    const taskDocRef = doc(db, 'tasks', taskId);
+    const task = tasks.find(task => task.id === taskId);
+    if (task) {
+      const updatedSubTasks = task.subTasks.filter(subTask => subTask.id !== subTaskId);
+      await updateDoc(taskDocRef, { subTasks: updatedSubTasks });
+      setTasks(tasks.map(task => task.id === taskId ? { ...task, subTasks: updatedSubTasks } : task));
+    }
   };
 
   return (
@@ -127,6 +71,11 @@ function App() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Team planning</h1>
             <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 bg-white rounded-lg shadow-sm p-1">
+                <button className="p-2 text-blue-600 bg-blue-50 rounded">
+                  <Table2 className="h-5 w-5" />
+                </button>
+              </div>
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="p-2 bg-green-600 text-white rounded-full hover:scale-110 transition-transform duration-200"
@@ -139,9 +88,27 @@ function App() {
         
         <TaskList
           tasks={tasks}
-          onStatusChange={handleStatusChange}
+          onStatusChange={async (taskId, status) => {
+            const taskDocRef = doc(db, 'tasks', taskId);
+            const task = tasks.find(task => task.id === taskId);
+            if (task) {
+              const updatedTask = { ...task, status, completedAt: status === 'done' ? new Date().toISOString() : null };
+              await updateDoc(taskDocRef, updatedTask);
+              setTasks(tasks.map(task => task.id === taskId ? updatedTask : task));
+            }
+          }}
           onSubTaskAdd={handleAddSubTask}
-          onSubTaskStatusChange={handleSubTaskStatusChange}
+          onSubTaskStatusChange={async (taskId, subTaskId, status) => {
+            const taskDocRef = doc(db, 'tasks', taskId);
+            const task = tasks.find(task => task.id === taskId);
+            if (task) {
+              const updatedSubTasks = task.subTasks.map(subTask =>
+                subTask.id === subTaskId ? { ...subTask, status, completedAt: status === 'done' ? new Date().toISOString() : null } : subTask
+              );
+              await updateDoc(taskDocRef, { subTasks: updatedSubTasks });
+              setTasks(tasks.map(task => task.id === taskId ? { ...task, subTasks: updatedSubTasks } : task));
+            }
+          }}
           onDeleteTask={handleDeleteTask}
           onDeleteSubTask={handleDeleteSubTask}
         />

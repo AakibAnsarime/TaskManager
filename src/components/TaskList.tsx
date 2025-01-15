@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
-import { ChevronDown, ChevronRight, Plus, Calendar, Trash2 } from 'lucide-react';
+import { MoreVertical, ChevronDown, ChevronRight, Plus, Calendar, Trash2 } from 'lucide-react';
 
 interface TaskListProps {
   tasks: Task[];

@@ -40,9 +40,9 @@ app.post('/tasks', (req, res) => {
   });
 });
 
-app.put('/tasks/:taskId/status', (req, res) => {
+app.post('/tasks/:taskId/subtasks', (req, res) => {
   const { taskId } = req.params;
-  const { status } = req.body;
+  const newSubTask = req.body;
   fs.readFile(tasksFilePath, 'utf8', (err, data) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to read tasks data' });
@@ -50,45 +50,15 @@ app.put('/tasks/:taskId/status', (req, res) => {
     let tasks = JSON.parse(data);
     tasks = tasks.map(task => {
       if (task.id === taskId) {
-        task.status = status;
-        task.completedAt = status === 'done' ? new Date().toISOString() : null;
+        task.subTasks.push(newSubTask);
       }
       return task;
     });
     fs.writeFile(tasksFilePath, JSON.stringify(tasks, null, 2), (err) => {
       if (err) {
-        return res.status(500).json({ error: 'Failed to update task status' });
+        return res.status(500).json({ error: 'Failed to save subtask' });
       }
-      res.status(200).json({ message: 'Task status updated' });
-    });
-  });
-});
-
-app.put('/tasks/:taskId/subtasks/:subTaskId/status', (req, res) => {
-  const { taskId, subTaskId } = req.params;
-  const { status } = req.body;
-  fs.readFile(tasksFilePath, 'utf8', (err, data) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to read tasks data' });
-    }
-    let tasks = JSON.parse(data);
-    tasks = tasks.map(task => {
-      if (task.id === taskId) {
-        task.subTasks = task.subTasks.map(subTask => {
-          if (subTask.id === subTaskId) {
-            subTask.status = status;
-            subTask.completedAt = status === 'done' ? new Date().toISOString() : null;
-          }
-          return subTask;
-        });
-      }
-      return task;
-    });
-    fs.writeFile(tasksFilePath, JSON.stringify(tasks, null, 2), (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to update subtask status' });
-      }
-      res.status(200).json({ message: 'Subtask status updated' });
+      res.status(201).json(newSubTask);
     });
   });
 });

@@ -19,9 +19,9 @@
         "title": "Header",
         "description": "responsive & dropdown menu",
         "completed": false,
-        "status": "done",
+        "status": "working",
         "createdAt": "2025-01-15T18:14:16.435Z",
-        "completedAt": "2025-01-15T18:43:38.472Z",
+        "completedAt": null,
         "owner": {
           "name": "John Doe",
           "avatar": "assets/profile.jpg"
@@ -32,7 +32,7 @@
         "title": "Fotter",
         "description": "simple footer",
         "completed": false,
-        "status": "stuck",
+        "status": "working",
         "createdAt": "2025-01-15T18:14:28.466Z",
         "completedAt": null,
         "owner": {
